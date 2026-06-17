@@ -26,6 +26,7 @@
         "dayjs": "^1.11.21",
         "dompurify": "^3.4.10",
         "file-saver": "^2.0.5",
+        "tesseract.js": "^7.0.0",
         "vue": "^3.5.38",
         "vue-chartjs": "^5.3.3",
         "vue-router": "^4.6.4",
