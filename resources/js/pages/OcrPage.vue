@@ -3,7 +3,7 @@
         <!-- Header -->
         <div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">OCR Gambar</h1>
-            <p class="text-gray-500 dark:text-gray-400">Ambil angka 4D dari gambar menggunakan OCR</p>
+            <p class="text-gray-500 dark:text-gray-400">Ambil angka 4D dari gambar menggunakan OCR (Tesseract.js)</p>
         </div>
 
         <!-- Mobile Instructions -->
@@ -28,9 +28,7 @@
                         'border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 cursor-pointer select-none',
                         dragOver 
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 scale-[1.02]' 
-                            : isDraggingMobile
-                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                                : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     ]"
                 >
                     <input 
@@ -133,15 +131,22 @@
                 <!-- Process Button -->
                 <button 
                     @click="processOCR"
-                    :disabled="!selectedImage || processing"
+                    :disabled="!selectedImage || processing || ocrLoading"
                     class="btn-primary w-full mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                    <svg v-if="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <svg v-if="processing || ocrLoading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {{ processing ? 'Memproses OCR...' : 'Proses OCR' }}
+                    {{ processing || ocrLoading ? `Memproses OCR... ${ocrProgress}%` : 'Proses OCR' }}
                 </button>
+                
+                <!-- OCR Engine Status -->
+                <div v-if="ocrEngineReady" class="mt-3 text-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                        ✅ Tesseract.js Ready
+                    </span>
+                </div>
             </div>
 
             <!-- Results Section -->
@@ -149,7 +154,7 @@
                 <h3 class="text-lg font-semibold mb-4">Hasil OCR</h3>
                 
                 <!-- Empty State -->
-                <div v-if="!ocrResults.length && !processing && !apiError" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div v-if="!ocrResults.length && !processing && !ocrLoading && !errorMessage" class="text-center py-12 text-gray-500 dark:text-gray-400">
                     <svg class="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
@@ -157,93 +162,133 @@
                     <p class="text-sm text-gray-400">Angka 4D akan otomatis terdeteksi</p>
                 </div>
 
-                <!-- API Error State -->
-                <div v-if="apiError" class="text-center py-8">
+                <!-- OCR Engine Loading State -->
+                <div v-if="ocrLoading && !ocrEngineReady" class="text-center py-8">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-center gap-3 mb-3">
+                            <svg class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-lg font-medium text-blue-700 dark:text-blue-300">Memuat OCR Engine...</span>
+                        </div>
+                        <div class="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2.5">
+                            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" :style="{ width: ocrProgress + '%' }"></div>
+                        </div>
+                        <p class="text-sm text-blue-600 dark:text-blue-400 mt-2">{{ ocrProgress }}%</p>
+                        <p class="text-xs text-blue-500 mt-1">Mohon tunggu, pertama kali perlu download data OCR</p>
+                    </div>
+                </div>
+
+                <!-- Processing State -->
+                <div v-if="processing" class="text-center py-8">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-center gap-3 mb-3">
+                            <svg class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-lg font-medium text-blue-700 dark:text-blue-300">Menganalisis gambar...</span>
+                        </div>
+                        <div class="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2.5">
+                            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" :style="{ width: ocrProgress + '%' }"></div>
+                        </div>
+                        <p class="text-sm text-blue-600 dark:text-blue-400 mt-2">{{ ocrProgress }}%</p>
+                    </div>
+                    
+                    <!-- OCR Text Preview -->
+                    <div v-if="rawOcrText" class="mt-4 text-left bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                        <p class="text-xs text-gray-500 mb-2">Teks terdeteksi:</p>
+                        <p class="font-mono text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ rawOcrText }}</p>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div v-if="errorMessage && !processing" class="text-center py-8">
                     <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
                         <svg class="w-12 h-12 mx-auto mb-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
-                        <p class="text-red-600 dark:text-red-400 font-medium">OCR Server Tidak Tersedia</p>
-                        <p class="text-sm text-red-500 dark:text-red-500 mt-1">{{ apiError }}</p>
-                        <button @click="retryOCR" class="mt-3 text-sm text-primary-600 hover:text-primary-700">
+                        <p class="text-red-600 dark:text-red-400 font-medium">{{ errorMessage }}</p>
+                        <button @click="processOCR" class="mt-3 text-sm text-primary-600 hover:text-primary-700">
                             🔄 Coba Lagi
                         </button>
                     </div>
                 </div>
 
-                <!-- Processing State -->
-                <div v-if="processing" class="text-center py-12">
-                    <div class="relative w-20 h-20 mx-auto mb-4">
-                        <svg class="animate-spin w-full h-full text-primary-500" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </div>
-                    <p class="text-gray-500 dark:text-gray-400 font-medium">Menganalisis gambar...</p>
-                    <p class="text-sm text-gray-400 mt-1">Mendeteksi angka 4D</p>
-                </div>
-
-                <!-- Results List -->
+                <!-- Results Table -->
                 <div v-if="ocrResults.length" class="space-y-4">
                     <div class="flex items-center justify-between">
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            Ditemukan {{ ocrResults.length }} angka 4D
+                            Ditemukan <strong>{{ ocrResults.length }}</strong> angka 4D
                         </p>
                         <button 
                             @click="selectAll"
                             class="text-sm text-primary-600 hover:text-primary-700"
                         >
-                            Pilih Semua
+                            {{ allSelected ? 'Batal Pilih Semua' : 'Pilih Semua' }}
                         </button>
                     </div>
                     
-                    <div v-for="(result, index) in ocrResults" :key="index" 
-                        :class="[
-                            'p-4 rounded-lg border-2 transition-all',
-                            result.selected 
-                                ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500' 
-                                : 'bg-gray-50 dark:bg-gray-800 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                        ]">
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="flex items-center gap-2">
-                                <input 
-                                    type="checkbox" 
-                                    :checked="result.selected"
-                                    @change="toggleSelect(index)"
-                                    class="w-4 h-4 text-primary-600 rounded"
-                                />
-                                <span class="text-sm text-gray-500">#{{ index + 1 }}</span>
-                            </div>
-                            <button 
-                                @click="saveResult(result)"
-                                :disabled="saving"
-                                class="text-primary-600 hover:text-primary-700 text-sm disabled:opacity-50"
-                            >
-                                💾 Simpan
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-4 gap-2 text-center">
-                            <div class="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-                                <div class="text-xs text-gray-500 mb-1">AS</div>
-                                <div class="text-2xl font-bold text-primary-600">{{ result.as }}</div>
-                            </div>
-                            <div class="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-                                <div class="text-xs text-gray-500 mb-1">KOP</div>
-                                <div class="text-2xl font-bold text-primary-600">{{ result.kop }}</div>
-                            </div>
-                            <div class="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-                                <div class="text-xs text-gray-500 mb-1">KEPALA</div>
-                                <div class="text-2xl font-bold text-primary-600">{{ result.kepala }}</div>
-                            </div>
-                            <div class="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-                                <div class="text-xs text-gray-500 mb-1">EKOR</div>
-                                <div class="text-2xl font-bold text-primary-600">{{ result.ekor }}</div>
-                            </div>
-                        </div>
-                        <div class="mt-2 text-center text-sm">
-                            Nomor: <span class="font-mono font-bold text-lg">{{ result.number }}</span>
-                        </div>
+                    <!-- Results Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100 dark:bg-gray-800">
+                                <tr>
+                                    <th class="px-2 py-2 text-left">
+                                        <input type="checkbox" :checked="allSelected" @change="selectAll" class="rounded" />
+                                    </th>
+                                    <th class="px-2 py-2 text-center">#</th>
+                                    <th class="px-2 py-2 text-center">AS</th>
+                                    <th class="px-2 py-2 text-center">KOP</th>
+                                    <th class="px-2 py-2 text-center">KEPALA</th>
+                                    <th class="px-2 py-2 text-center">EKOR</th>
+                                    <th class="px-2 py-2 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <tr v-for="(result, index) in ocrResults" :key="index" 
+                                    :class="[
+                                        'transition-colors',
+                                        result.selected ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                    ]">
+                                    <td class="px-2 py-2">
+                                        <input 
+                                            type="checkbox" 
+                                            :checked="result.selected"
+                                            @change="toggleSelect(index)"
+                                            class="rounded"
+                                        />
+                                    </td>
+                                    <td class="px-2 py-2 text-center text-gray-500">{{ index + 1 }}</td>
+                                    <td class="px-2 py-2 text-center font-bold text-primary-600">{{ result.as }}</td>
+                                    <td class="px-2 py-2 text-center font-bold text-primary-600">{{ result.kop }}</td>
+                                    <td class="px-2 py-2 text-center font-bold text-primary-600">{{ result.kepala }}</td>
+                                    <td class="px-2 py-2 text-center font-bold text-primary-600">{{ result.ekor }}</td>
+                                    <td class="px-2 py-2 text-center">
+                                        <button 
+                                            @click="saveResult(result)"
+                                            :disabled="saving"
+                                            class="text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                                            title="Simpan"
+                                        >
+                                            💾
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
+
+                    <!-- Raw OCR Text -->
+                    <details class="mt-4">
+                        <summary class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                            📄 Lihat teks asli hasil OCR
+                        </summary>
+                        <div class="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            <pre class="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ rawOcrText }}</pre>
+                        </div>
+                    </details>
 
                     <!-- Save Selected Button -->
                     <button 
@@ -260,7 +305,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { create, OCREngine } from 'tesseract.js'
 import axios from 'axios'
 
 // Refs
@@ -269,19 +315,57 @@ const cameraInput = ref(null)
 const selectedImage = ref(null)
 const imagePreview = ref(null)
 const dragOver = ref(false)
-const isDraggingMobile = ref(false)
 const processing = ref(false)
 const saving = ref(false)
 const errorMessage = ref('')
-const apiError = ref('')
 const ocrResults = ref([])
+const ocrProgress = ref(0)
+const ocrLoading = ref(false)
+const ocrEngineReady = ref(false)
+const rawOcrText = ref('')
+const ocrEngine = ref(null)
 
 // Computed
 const hasSelectedResults = computed(() => ocrResults.value.some(r => r.selected))
 const selectedCount = computed(() => ocrResults.value.filter(r => r.selected).length)
+const allSelected = computed(() => ocrResults.value.length > 0 && ocrResults.value.every(r => r.selected))
 
 // Max file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+// Initialize Tesseract engine on mount
+onMounted(async () => {
+    await initializeOCR()
+})
+
+// Initialize OCR Engine
+const initializeOCR = async () => {
+    try {
+        ocrLoading.value = true
+        ocrProgress.value = 0
+        
+        console.log('🚀 Initializing Tesseract.js OCR engine...')
+        
+        // Create OCR engine
+        const engine = await create('eng', undefined, {
+            logger: (m) => {
+                if (m.status === 'loading tesseract core') {
+                    ocrProgress.value = Math.round(m.progress * 100)
+                }
+            }
+        })
+        
+        ocrEngine.value = engine
+        ocrEngineReady.value = true
+        ocrLoading.value = false
+        
+        console.log('✅ Tesseract.js OCR engine ready!')
+    } catch (error) {
+        console.error('❌ Failed to initialize OCR engine:', error)
+        errorMessage.value = 'Gagal memuat OCR engine. Silakan refresh halaman.'
+        ocrLoading.value = false
+    }
+}
 
 // Validate file
 const validateFile = (file) => {
@@ -336,7 +420,6 @@ const onDragOver = (e) => {
 
 const onDragLeave = (e) => {
     e.preventDefault()
-    // Only set to false if leaving the drop zone
     if (!e.currentTarget.contains(e.relatedTarget)) {
         dragOver.value = false
     }
@@ -345,21 +428,11 @@ const onDragLeave = (e) => {
 const onDrop = (e) => {
     e.preventDefault()
     dragOver.value = false
-    isDraggingMobile.value = false
     
     const files = e.dataTransfer?.files
     if (files && files.length > 0) {
         handleFile(files[0])
     }
-}
-
-// Touch events for mobile drag
-const onTouchStart = () => {
-    isDraggingMobile.value = true
-}
-
-const onTouchEnd = () => {
-    isDraggingMobile.value = false
 }
 
 // Handle file selection
@@ -385,7 +458,8 @@ const handleFile = (file) => {
     selectedImage.value = file
     imagePreview.value = URL.createObjectURL(file)
     ocrResults.value = []
-    apiError.value = ''
+    errorMessage.value = ''
+    rawOcrText.value = ''
     
     // Reset file inputs
     if (imageInput.value) imageInput.value.value = ''
@@ -398,7 +472,7 @@ const clearImage = () => {
     imagePreview.value = null
     ocrResults.value = []
     errorMessage.value = ''
-    apiError.value = ''
+    rawOcrText.value = ''
 }
 
 // Toggle result selection
@@ -410,65 +484,93 @@ const toggleSelect = (index) => {
 
 // Select all results
 const selectAll = () => {
-    const allSelected = ocrResults.value.every(r => r.selected)
-    ocrResults.value.forEach(r => r.selected = !allSelected)
+    const newValue = !allSelected.value
+    ocrResults.value.forEach(r => r.selected = newValue)
 }
 
-// Process OCR
-const processOCR = async () => {
-    if (!selectedImage.value) return
+// Extract 4-digit numbers from text
+const extract4DDigits = (text) => {
+    // Match 4-digit sequences that stand alone
+    const fourDigitPattern = /\b(\d{4})\b/g
+    const matches = text.match(fourDigitPattern) || []
     
-    processing.value = true
-    apiError.value = ''
+    // Also try to find numbers in various formats
+    // Match patterns like: 1234, 1 2 3 4, 1234ABCD1234, etc.
+    const loosePattern = /(\d{4})/g
+    const looseMatches = text.match(loosePattern) || []
     
-    const formData = new FormData()
-    formData.append('image', selectedImage.value)
+    // Combine and dedupe
+    const allMatches = [...new Set([...matches, ...looseMatches])]
     
-    try {
-        console.log('📤 Uploading to /api/ocr...')
-        const response = await axios.post('/api/ocr', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 60000 // 60s timeout
-        })
-        
-        console.log('✅ OCR Response:', response.data)
-        
-        const results = response.data.results || []
-        
-        // Add selected property to each result
-        ocrResults.value = results.map(r => ({
-            ...r,
-            selected: true
-        }))
-        
-        if (ocrResults.value.length === 0) {
-            apiError.value = 'Tidak ada angka 4D yang terdeteksi. Coba gunakan gambar yang lebih jelas.'
-        }
-    } catch (error) {
-        console.error('❌ OCR Error:', error)
-        
-        if (error.code === 'ECONNABORTED') {
-            apiError.value = 'Waktu habis. Gambar terlalu besar atau koneksi lambat.'
-        } else if (error.response?.status === 404) {
-            apiError.value = 'Endpoint OCR tidak ditemukan. Pastikan backend sudah running.'
-        } else if (error.response?.status === 500) {
-            apiError.value = 'Server error. Coba lagi nanti.'
-        } else if (!error.response) {
-            apiError.value = 'Tidak dapat terhubung ke server. Periksa koneksi internet.'
-        } else {
-            apiError.value = error.response?.data?.message || 'Terjadi kesalahan saat memproses OCR'
-        }
-        
-        ocrResults.value = []
-    } finally {
-        processing.value = false
+    return allMatches
+}
+
+// Parse 4D number into components
+const parse4DNumber = (number) => {
+    const numStr = String(number).padStart(4, '0').slice(-4)
+    return {
+        number: numStr,
+        as: numStr[0],
+        kop: numStr[1],
+        kepala: numStr[2],
+        ekor: numStr[3]
     }
 }
 
-// Retry OCR
-const retryOCR = () => {
-    apiError.value = ''
-    processOCR()
+// Process OCR using Tesseract.js
+const processOCR = async () => {
+    if (!selectedImage.value) return
+    
+    // Wait for OCR engine to be ready
+    if (!ocrEngineReady.value) {
+        errorMessage.value = 'OCR engine masih memuat. Mohon tunggu...'
+        return
+    }
+    
+    processing.value = true
+    errorMessage.value = ''
+    ocrResults.value = []
+    ocrProgress.value = 0
+    
+    try {
+        console.log('📤 Processing image with Tesseract.js...')
+        
+        // Recognize text from image
+        const result = await ocrEngine.value.recognize(selectedImage.value, {}, {
+            logger: (m) => {
+                if (m.status === 'recognizing text') {
+                    ocrProgress.value = Math.round(m.progress * 100)
+                }
+            }
+        })
+        
+        console.log('✅ OCR Result:', result)
+        
+        rawOcrText.value = result.data.text
+        
+        // Extract 4-digit numbers
+        const digits4D = extract4DDigits(result.data.text)
+        
+        console.log('🔢 Found 4D digits:', digits4D)
+        
+        if (digits4D.length === 0) {
+            errorMessage.value = 'Tidak ada angka 4 digit yang terdeteksi. Coba gunakan gambar yang lebih jelas.'
+        } else {
+            // Parse and add selected property
+            ocrResults.value = digits4D.map(num => ({
+                ...parse4DNumber(num),
+                selected: true
+            }))
+            
+            showToast(`Ditemukan ${ocrResults.value.length} angka 4D!`)
+        }
+    } catch (error) {
+        console.error('❌ OCR Error:', error)
+        errorMessage.value = 'Gagal memproses gambar. Silakan coba lagi.'
+    } finally {
+        processing.value = false
+        ocrProgress.value = 100
+    }
 }
 
 // Save single result
@@ -485,7 +587,6 @@ const saveResult = async (result) => {
             ocrResults.value.splice(index, 1)
         }
         
-        // Show success (non-blocking)
         showToast('Data berhasil disimpan!')
     } catch (error) {
         console.error('Save error:', error)
@@ -522,7 +623,6 @@ const saveSelectedResults = async () => {
 
 // Simple toast notification
 const showToast = (message, type = 'success') => {
-    // Create toast element
     const toast = document.createElement('div')
     toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 transition-all transform translate-y-0 opacity-100 ${
         type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
@@ -530,7 +630,6 @@ const showToast = (message, type = 'success') => {
     toast.textContent = message
     document.body.appendChild(toast)
     
-    // Remove after 3 seconds
     setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-y-2')
         setTimeout(() => toast.remove(), 300)
