@@ -7,6 +7,8 @@ import { errorHandler } from './middleware/error-handler';
 import { authRouter } from './routes/auth.routes';
 import { tradingRouter } from './routes/trading.routes';
 import { healthRouter } from './routes/health.routes';
+import { marketRouter } from './routes/market.routes';
+import { mt5Service } from './services/market';
 
 const app = express();
 
@@ -30,10 +32,14 @@ app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize MT5 Market Service
+mt5Service.connect().catch(console.error);
+
 // Routes
 app.use('/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/trading', tradingRouter);
+app.use('/api/v1/market', marketRouter);
 
 // Error handling
 app.use(errorHandler);

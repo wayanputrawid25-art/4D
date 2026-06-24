@@ -7,3 +7,4 @@ export { tradesRepository, TradesRepository } from './trades.repository';
 export { sessionsRepository, SessionsRepository } from './sessions.repository';
 export { strategiesRepository, StrategiesRepository } from './strategies.repository';
 export { candlesRepository, CandlesRepository } from './candles.repository';
+export { symbolsRepository, SymbolsRepository } from './symbols.repository';
