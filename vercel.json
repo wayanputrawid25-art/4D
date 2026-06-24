@@ -1,0 +1,20 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd apps/web && npm install && npm run build",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "npm install",
+  "devCommand": "cd apps/web && npm run dev",
+  "regions": ["sin1"],
+  "public": true,
+  "github": {
+    "silent": false,
+    "autoJobCanceling": false
+  },
+  "projectSettings": {
+    "frameworkPreset": "NEXTJS",
+    "buildCommand": "cd apps/web && npm install && npm run build",
+    "outputDirectory": "apps/web/.next",
+    "installCommand": "npm install",
+    "devCommand": "cd apps/web && npm run dev"
+  }
+}
