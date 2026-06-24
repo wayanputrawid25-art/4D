@@ -8,6 +8,7 @@ import { authRouter } from './routes/auth.routes';
 import { tradingRouter } from './routes/trading.routes';
 import { healthRouter } from './routes/health.routes';
 import { marketRouter } from './routes/market.routes';
+import { patternRouter } from './routes/pattern.routes';
 import { mt5Service } from './services/market';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/trading', tradingRouter);
 app.use('/api/v1/market', marketRouter);
+app.use('/api/v1/patterns', patternRouter);
 
 // Error handling
 app.use(errorHandler);
