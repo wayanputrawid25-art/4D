@@ -12,6 +12,7 @@ import { patternRouter } from './routes/pattern.routes';
 import { indicatorRouter } from './routes/indicator.routes';
 import { decisionRouter } from './routes/decision.routes';
 import { executionRouter } from './routes/execution.routes';
+import { optimizationRouter } from './routes/optimization.routes';
 import { mt5Service } from './services/market';
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api/v1/patterns', patternRouter);
 app.use('/api/v1/indicators', indicatorRouter);
 app.use('/api/v1/decision', decisionRouter);
 app.use('/api/v1/execution', executionRouter);
+app.use('/api/v1/optimization', optimizationRouter);
 
 // Error handling
 app.use(errorHandler);
