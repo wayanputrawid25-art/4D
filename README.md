@@ -68,7 +68,9 @@ forexos/
 ### Prerequisites
 
 - Node.js 20+
+- npm 10+
 - Python 3.11+
+- Docker & Docker Compose (optional)
 - PostgreSQL (Neon) account
 - MT5 Trading Account
 
@@ -79,19 +81,24 @@ forexos/
 git clone https://github.com/your-username/forexos.git
 cd forexos
 
-# Install dependencies
+# Install all dependencies (monorepo)
 npm install
 
-# Set up environment variables
+# Copy environment files
 cp apps/web/.env.example apps/web/.env.local
 cp apps/api/.env.example apps/api/.env.local
 
-# Set up database
-npm run db:generate
-npm run db:push
+# Edit .env.local files with your credentials
 
-# Start development servers
-npm run dev
+# Start development with Docker (recommended)
+docker-compose up -d
+
+# Or start manually:
+# Terminal 1: Start web app
+npm run dev --filter=@forexos/web
+
+# Terminal 2: Start API
+npm run dev --filter=@forexos/api
 ```
 
 ### Robot Setup
@@ -99,18 +106,27 @@ npm run dev
 ```bash
 cd robot
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (Poetry)
+poetry install
 
 # Configure MT5 credentials
 cp .env.example .env
 
 # Run robot
-python -m src.main
+poetry run python -m src.main
+```
+
+### Using Docker
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
 ## 📚 Documentation

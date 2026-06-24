@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # ForexOS API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: forexos-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - PORT=3001
+    depends_on:
+      - redis
+    networks:
+      - forexos-network
+
+  # ForexOS Web
+  web:
+    image: node:20-alpine
+    container_name: forexos-web
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    command: sh -c "npm run dev"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://api:3001
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    networks:
+      - forexos-network
+
+  # Redis for caching and pub/sub
+  redis:
+    image: redis:7-alpine
+    container_name: forexos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - forexos-network
+
+  # PostgreSQL for development (use Neon in production)
+  postgres:
+    image: postgres:15-alpine
+    container_name: forexos-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: forexos
+      POSTGRES_PASSWORD: forexos_dev_password
+      POSTGRES_DB: forexos_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - forexos-network
+
+  # Robot (MT5 connector)
+  robot:
+    build:
+      context: ./robot
+      dockerfile: Dockerfile.robot
+    container_name: forexos-robot
+    restart: unless-stopped
+    environment:
+      - MT5_LOGIN=${MT5_LOGIN}
+      - MT5_PASSWORD=${MT5_PASSWORD}
+      - MT5_SERVER=${MT5_SERVER}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      - API_URL=http://api:3001
+    volumes:
+      - mt5_data:/app/data
+    depends_on:
+      - api
+      - redis
+    networks:
+      - forexos-network
+
+volumes:
+  redis_data:
+  postgres_data:
+  mt5_data:
+
+networks:
+  forexos-network:
+    driver: bridge
