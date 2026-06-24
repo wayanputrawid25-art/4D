@@ -12,7 +12,7 @@
     "./database": "./src/database.ts"
   },
   "devDependencies": {
-    "@forexos/config": "workspace:*",
+    "@forexos/config": "*",
     "typescript": "^5.4.0"
   }
 }

@@ -23,7 +23,7 @@
     "drizzle-orm": "^0.30.0"
   },
   "devDependencies": {
-    "@forexos/config": "workspace:*",
+    "@forexos/config": "*",
     "@types/node": "^20.12.0",
     "drizzle-kit": "^0.21.0",
     "typescript": "^5.4.0"
