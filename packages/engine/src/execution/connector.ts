@@ -9,6 +9,7 @@ import type {
   Position,
   TradeResult
 } from './types';
+import { configService } from '@forexos/trading-config';
 
 export interface MT5ConnectionState {
   connected: boolean;
@@ -16,17 +17,6 @@ export interface MT5ConnectionState {
   lastError?: string;
   reconnectAttempts: number;
 }
-
-// Default configuration
-const DEFAULT_CONFIG: MT5ConnectionConfig = {
-  host: process.env.MT5_HOST || 'localhost',
-  port: parseInt(process.env.MT5_PORT || '8888'),
-  login: parseInt(process.env.MT5_LOGIN || '0'),
-  password: process.env.MT5_PASSWORD || '',
-  server: process.env.MT5_SERVER || '',
-  reconnectInterval: 5000,
-  maxRetries: 3,
-};
 
 export class MT5Connector {
   private config: MT5ConnectionConfig;
@@ -42,13 +32,27 @@ export class MT5Connector {
   private isDemo: boolean;
 
   constructor(config?: Partial<MT5ConnectionConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    // Get MT5 config from configuration service
+    const mt5Config = configService.getMT5Config();
+    
+    this.config = {
+      host: config?.host ?? mt5Config.host,
+      port: config?.port ?? mt5Config.port,
+      login: config?.login ?? mt5Config.login ?? parseInt(process.env.MT5_LOGIN || '0'),
+      password: config?.password ?? mt5Config.password ?? process.env.MT5_PASSWORD || '',
+      server: config?.server ?? mt5Config.server ?? process.env.MT5_SERVER || '',
+      reconnectInterval: config?.reconnectInterval ?? mt5Config.reconnectInterval,
+      maxRetries: config?.maxRetries ?? mt5Config.maxRetries,
+    };
+    
     this.state = {
       connected: false,
       authenticated: false,
       reconnectAttempts: 0,
     };
-    this.isDemo = process.env.MT5_USE_DEMO !== 'false';
+    
+    // Demo mode must be explicitly enabled in config
+    this.isDemo = config?.useDemo ?? mt5Config.useDemo ?? process.env.MT5_USE_DEMO === 'true';
   }
 
   /**

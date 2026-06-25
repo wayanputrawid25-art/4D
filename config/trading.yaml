@@ -1,0 +1,535 @@
+# ForexOS Trading Configuration
+# All trading parameters must be defined here. No hardcoding allowed.
+
+# =============================================================================
+# RISK MANAGEMENT
+# =============================================================================
+risk:
+  # Maximum risk per trade as percentage of account balance
+  maxRiskPerTrade: 2.0  # 2%
+  
+  # Maximum daily risk as percentage of account
+  maxDailyRisk: 6.0  # 6%
+  
+  # Maximum number of open positions
+  maxOpenPositions: 5
+  
+  # Maximum correlation between positions (0-1)
+  maxCorrelation: 0.5
+  
+  # Minimum risk-reward ratio for trades
+  minRiskReward: 1.5
+  
+  # Maximum drawdown limit (percentage)
+  maxDrawdownLimit: 20.0
+  
+  # Maximum consecutive losses before pause
+  maxConsecutiveLosses: 5
+  
+  # Position sizing method: fixed, kelly, or adaptive
+  positionSizingMethod: "adaptive"
+  
+  # Kelly fraction for position sizing (0-1)
+  kellyFraction: 0.25
+  
+  # Use fixed fractional position sizing
+  fixedFractional: 0.02  # 2% of account
+  
+  # Maximum position size in lots
+  maxPositionSize: 10.0
+  
+  # Minimum position size in lots
+  minPositionSize: 0.01
+
+# =============================================================================
+# SYMBOL CONFIGURATION
+# =============================================================================
+symbols:
+  EURUSD:
+    contractSize: 100000
+    pipDecimal: 0.0001
+    pipValue: 10.0
+    minLot: 0.01
+    maxLot: 100.0
+    lotStep: 0.01
+    minSpread: 1
+    maxSpread: 50
+    marginHedge: 0.5
+    swapLong: -5.0
+    swapShort: -5.0
+  
+  GBPUSD:
+    contractSize: 100000
+    pipDecimal: 0.0001
+    pipValue: 10.0
+    minLot: 0.01
+    maxLot: 100.0
+    lotStep: 0.01
+    minSpread: 2
+    maxSpread: 50
+    marginHedge: 0.5
+    swapLong: -5.0
+    swapShort: -5.0
+  
+  USDJPY:
+    contractSize: 100000
+    pipDecimal: 0.01
+    pipValue: 1000.0
+    minLot: 0.01
+    maxLot: 100.0
+    lotStep: 0.01
+    minSpread: 1
+    maxSpread: 50
+    marginHedge: 0.5
+    swapLong: -5.0
+    swapShort: -5.0
+  
+  USDCHF:
+    contractSize: 100000
+    pipDecimal: 0.0001
+    pipValue: 10.0
+    minLot: 0.01
+    maxLot: 100.0
+    lotStep: 0.01
+    minSpread: 2
+    maxSpread: 50
+    marginHedge: 0.5
+    swapLong: -5.0
+    swapShort: -5.0
+  
+  AUDUSD:
+    contractSize: 100000
+    pipDecimal: 0.0001
+    pipValue: 10.0
+    minLot: 0.01
+    maxLot: 100.0
+    lotStep: 0.01
+    minSpread: 1
+    maxSpread: 50
+    marginHedge: 0.5
+    swapLong: -5.0
+    swapShort: -5.0
+  
+  USDCAD:
+    contractSize: 100000
+    pipDecimal: 0.0001
+    pipValue: 10.0
+    minLot: 0.01
+    maxLot: 100.0
+    lotStep: 0.01
+    minSpread: 2
+    maxSpread: 50
+    marginHedge: 0.5
+    swapLong: -5.0
+    swapShort: -5.0
+  
+  XAUUSD:
+    contractSize: 100
+    pipDecimal: 0.01
+    pipValue: 1.0
+    minLot: 0.01
+    maxLot: 50.0
+    lotStep: 0.01
+    minSpread: 20
+    maxSpread: 500
+    marginHedge: 0.5
+    swapLong: -10.0
+    swapShort: -10.0
+
+# =============================================================================
+# PATTERN DETECTION
+# =============================================================================
+patterns:
+  # Minimum confidence threshold for pattern signals
+  minConfidence: 50
+  
+  # Enable/disable specific pattern categories
+  candlestick:
+    enabled: true
+    patterns:
+      - doji
+      - hammer
+      - inverted_hammer
+      - bullish_engulfing
+      - bearish_engulfing
+      - morning_star
+      - evening_star
+      - piercing_line
+      - dark_cloud_cover
+      - harami
+      - shooting_star
+      - spinning_top
+      - marubozu
+  
+  chart:
+    enabled: true
+    patterns:
+      - head_and_shoulders
+      - inverse_head_and_shoulders
+      - double_top
+      - double_bottom
+      - triple_top
+      - triple_bottom
+      - ascending_triangle
+      - descending_triangle
+      - symmetrical_triangle
+      - rising_wedge
+      - falling_wedge
+      - bull_flag
+      - bear_flag
+      - pennant_bullish
+      - pennant_bearish
+  
+  # Confluence analysis settings
+  confluence:
+    # Threshold for bullish/bearish bias (0.35-0.65)
+    bullishThreshold: 0.65
+    bearishThreshold: 0.35
+    # Minimum patterns for valid signal
+    minPatternsForSignal: 2
+
+# =============================================================================
+# INDICATORS
+# =============================================================================
+indicators:
+  # Trend indicators
+  trend:
+    sma:
+      defaultPeriod: 20
+      enabled: true
+    ema:
+      defaultPeriod: 12
+      enabled: true
+    wma:
+      defaultPeriod: 20
+      enabled: true
+    dema:
+      defaultPeriod: 20
+      enabled: true
+    tema:
+      defaultPeriod: 20
+      enabled: true
+    vwap:
+      enabled: true
+    ichimoku:
+      enabled: true
+      tenkanPeriod: 9
+      kijunPeriod: 26
+      senkouPeriod: 52
+  
+  # Momentum indicators
+  momentum:
+    rsi:
+      defaultPeriod: 14
+      overbought: 70
+      oversold: 30
+      enabled: true
+    macd:
+      fastPeriod: 12
+      slowPeriod: 26
+      signalPeriod: 9
+      enabled: true
+    stochastic:
+      kPeriod: 14
+      dPeriod: 3
+      smoothK: 3
+      overbought: 80
+      oversold: 20
+      enabled: true
+    adx:
+      defaultPeriod: 14
+      trendThreshold: 25
+      enabled: true
+    momentum:
+      defaultPeriod: 14
+      enabled: true
+    roc:
+      defaultPeriod: 14
+      enabled: true
+  
+  # Volatility indicators
+  volatility:
+    bollingerBands:
+      period: 20
+      stdDev: 2.0
+      enabled: true
+    atr:
+      defaultPeriod: 14
+      enabled: true
+    stddev:
+      defaultPeriod: 20
+      enabled: true
+    keltner:
+      emaPeriod: 20
+      atrPeriod: 10
+      multiplier: 2.0
+      enabled: true
+  
+  # Volume indicators
+  volume:
+    obv:
+      enabled: true
+    vwap:
+      enabled: true
+    adl:
+      enabled: true
+    cmf:
+      period: 20
+      enabled: true
+    vpt:
+      enabled: true
+
+# =============================================================================
+# DECISION ENGINE
+# =============================================================================
+decision:
+  # Minimum number of confirming indicators
+  minConfirmingIndicators: 2
+  
+  # Signal aggregation weights
+  weights:
+    pattern: 0.3
+    indicator: 0.5
+    confluence: 0.2
+  
+  # Confidence thresholds
+  confidenceThresholds:
+    high: 75
+    medium: 50
+    low: 25
+  
+  # Require multi-timeframe confirmation
+  multiTimeframeConfirm: true
+  
+  # Timeframes for multi-timeframe analysis
+  timeframes:
+    - H1
+    - H4
+    - D1
+  
+  # Trend alignment requirements
+  trendAlignment:
+    requireUpwardTrend: true
+    requireDownwardTrend: true
+  
+  # Session filters (UTC hours)
+  tradingSessions:
+    london:
+      enabled: true
+      startHour: 8
+      endHour: 12
+    newYork:
+      enabled: true
+      startHour: 13
+      endHour: 17
+    tokyo:
+      enabled: false
+      startHour: 0
+      endHour: 6
+  
+  # News filter
+  newsFilter:
+    enabled: true
+    blacklistHours: 1  # Hours before/after news to avoid trading
+
+# =============================================================================
+# EXECUTION
+# =============================================================================
+execution:
+  # MT5 Connection
+  mt5:
+    host: "localhost"
+    port: 8888
+    reconnectInterval: 5000
+    maxRetries: 3
+    timeout: 30000
+    useDemo: false
+  
+  # Order execution
+  order:
+    # Maximum slippage in pips
+    maxSlippage: 3
+    
+    # Use market orders only
+    marketOnly: false
+    
+    # Allow limit orders
+    allowLimitOrders: true
+    
+    # Allow stop orders
+    allowStopOrders: true
+    
+    # Default order type
+    defaultType: "market"
+    
+    # Maximum deviation from request
+    maxDeviation: 5
+  
+  # Position management
+  position:
+    # Auto-breakeven after X pips profit
+    breakevenTriggerPips: 10
+    breakevenOffsetPips: 2
+    
+    # Trailing stop settings
+    trailingStop:
+      enabled: true
+      triggerPips: 15
+      stepPips: 5
+  
+  # Risk controls
+  controls:
+    # Block new trades during drawdown
+    blockTradesDuringDrawdown: true
+    drawdownThreshold: 10.0
+    
+    # Maximum orders per minute
+    maxOrdersPerMinute: 3
+    
+    # Require manual confirmation for trades > X lots
+    manualConfirmThreshold: 1.0
+
+# =============================================================================
+# BACKTEST
+# =============================================================================
+backtest:
+  # Default initial balance
+  initialBalance: 10000
+  
+  # Default leverage
+  leverage: 100
+  
+  # Default commission per lot
+  commissionPerLot: 7.0
+  
+  # Spread settings
+  spread:
+    # Use realistic spread
+    useRealisticSpread: true
+    # Add to historical spread (pips)
+    additionalSpread: 1.0
+  
+  # Slippage settings
+  slippage:
+    # Use slippage simulation
+    enabled: true
+    # Slippage in pips
+    pips: 1.0
+  
+  # Testing periods
+  periods:
+    # In-sample period start
+    inSampleStart: "2020-01-01"
+    # In-sample period end
+    inSampleEnd: "2022-12-31"
+    # Out-of-sample period start
+    outOfSampleStart: "2023-01-01"
+    # Out-of-sample period end
+    outOfSampleEnd: "2024-12-31"
+  
+  # Optimization settings
+  optimization:
+    # Monte Carlo simulations
+    monteCarloSimulations: 1000
+    # Walk-forward windows
+    walkForwardWindows: 5
+    # In-sample percentage
+    walkForwardInSample: 0.7
+
+# =============================================================================
+# OPTIMIZATION
+# =============================================================================
+optimization:
+  # Default method
+  method: "walk_forward"  # grid_search, genetic, bayesian, walk_forward
+  
+  # Grid search settings
+  gridSearch:
+    maxCombinations: 10000
+    parallel: true
+  
+  # Genetic algorithm settings
+  genetic:
+    populationSize: 50
+    generations: 100
+    mutationRate: 0.1
+    crossoverRate: 0.8
+    elitismCount: 5
+    tournamentSize: 3
+  
+  # Walk-forward settings
+  walkForward:
+    steps: 5
+    inSamplePercent: 0.7
+    outOfSamplePercent: 0.3
+    windowType: "rolling"  # rolling, expanding, fixed
+  
+  # Bayesian settings
+  bayesian:
+    iterations: 50
+    explorationWeight: 0.1
+  
+  # Fitness metrics
+  fitness:
+    # Primary metric for optimization
+    primary: "profit_factor"
+    # Secondary metrics to track
+    secondary:
+      - sharpe_ratio
+      - win_rate
+      - max_drawdown
+    # Minimum trades for valid result
+    minTrades: 30
+    # Maximum acceptable drawdown
+    maxDrawdown: 20.0
+  
+  # Constraints
+  constraints:
+    maxDrawdownPercent: 20.0
+    minTrades: 30
+    minWinRate: 40.0
+    maxConsecutiveLosses: 8
+
+# =============================================================================
+# LOGGING & MONITORING
+# =============================================================================
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json, text
+  
+  # Log destinations
+  destinations:
+    console:
+      enabled: true
+      level: "info"
+    file:
+      enabled: true
+      level: "debug"
+      path: "./logs/trading.log"
+      maxSize: "10mb"
+      maxFiles: 5
+    database:
+      enabled: false
+      level: "warn"
+  
+  # What to log
+  include:
+    trades: true
+    signals: true
+    errors: true
+    configuration: true
+    performance: true
+
+# =============================================================================
+# ENVIRONMENT
+# =============================================================================
+environment:
+  mode: "production"  # development, staging, production
+  region: "sin1"  # Singapore
+  
+  # Feature flags
+  features:
+    aiDecisionSynthesis: true
+    autoTrading: false
+    socialTrading: false
+    notifications: true

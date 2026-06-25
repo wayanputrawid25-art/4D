@@ -13,13 +13,17 @@ import {
 import { 
   detectAllChartPatterns 
 } from './chart';
+import { configService } from '@forexos/trading-config';
 
 export class PatternDetectionService {
-  private minConfidence: number = 50;
+  private minConfidence: number;
   private patternTypes?: PatternType[];
 
   constructor(options: PatternDetectionOptions = {}) {
-    this.minConfidence = options.minConfidence ?? 50;
+    // Get defaults from config service
+    const patternsConfig = configService.getPatterns();
+    
+    this.minConfidence = options.minConfidence ?? patternsConfig.minConfidence;
     this.patternTypes = options.patternTypes;
   }
 

@@ -1,37 +1,52 @@
 // Risk Calculator - Position sizing and risk management
 import type { PositionSizeResult, RiskParameters } from './types';
+import { configService } from '@forexos/trading-config';
 
-// Default risk parameters
-const DEFAULT_PARAMS: RiskParameters = {
-  maxRiskPerTrade: 2, // 2% of account
-  maxDailyRisk: 6, // 6% of account per day
-  maxOpenPositions: 5,
-  maxCorrelation: 0.5, // Max correlation between positions
-  minRiskReward: 1.5, // Minimum 1.5:1 R:R
-};
-
-// Symbol specifications
-const SYMBOL_SPECS: Record<string, {
-  contractSize: number;
-  pipDecimal: number;
-  pipValue: number;
-  minLot: number;
-  maxLot: number;
-  lotStep: number;
-}> = {
-  EURUSD: { contractSize: 100000, pipDecimal: 0.0001, pipValue: 10, minLot: 0.01, maxLot: 100, lotStep: 0.01 },
-  GBPUSD: { contractSize: 100000, pipDecimal: 0.0001, pipValue: 10, minLot: 0.01, maxLot: 100, lotStep: 0.01 },
-  USDJPY: { contractSize: 100000, pipDecimal: 0.01, pipValue: 1000, minLot: 0.01, maxLot: 100, lotStep: 0.01 },
-  USDCHF: { contractSize: 100000, pipDecimal: 0.0001, pipValue: 10, minLot: 0.01, maxLot: 100, lotStep: 0.01 },
-  AUDUSD: { contractSize: 100000, pipDecimal: 0.0001, pipValue: 10, minLot: 0.01, maxLot: 100, lotStep: 0.01 },
-  USDCAD: { contractSize: 100000, pipDecimal: 0.0001, pipValue: 10, minLot: 0.01, maxLot: 100, lotStep: 0.01 },
-};
-
+/**
+ * Risk Calculator - All risk parameters read from configuration service
+ */
 export class RiskCalculator {
   private params: RiskParameters;
 
   constructor(params: Partial<RiskParameters> = {}) {
-    this.params = { ...DEFAULT_PARAMS, ...params };
+    // Initialize from config service
+    const riskConfig = configService.getRisk();
+    
+    this.params = {
+      maxRiskPerTrade: params.maxRiskPerTrade ?? riskConfig.maxRiskPerTrade,
+      maxDailyRisk: params.maxDailyRisk ?? riskConfig.maxDailyRisk,
+      maxOpenPositions: params.maxOpenPositions ?? riskConfig.maxOpenPositions,
+      maxCorrelation: params.maxCorrelation ?? riskConfig.maxCorrelation,
+      minRiskReward: params.minRiskReward ?? riskConfig.minRiskReward,
+    };
+  }
+
+  /**
+   * Get symbol specs from config service
+   */
+  private getSymbolSpecs(symbol: string) {
+    const symbolConfig = configService.getSymbol(symbol);
+    
+    if (!symbolConfig) {
+      // Fallback to default EURUSD specs
+      return {
+        contractSize: 100000,
+        pipDecimal: 0.0001,
+        pipValue: 10,
+        minLot: 0.01,
+        maxLot: 100,
+        lotStep: 0.01,
+      };
+    }
+
+    return {
+      contractSize: symbolConfig.contractSize,
+      pipDecimal: symbolConfig.pipDecimal,
+      pipValue: symbolConfig.pipValue,
+      minLot: symbolConfig.minLot,
+      maxLot: symbolConfig.maxLot,
+      lotStep: symbolConfig.lotStep,
+    };
   }
 
   /**
@@ -47,8 +62,8 @@ export class RiskCalculator {
   }): PositionSizeResult {
     const { symbol, accountBalance, entryPrice, stopLoss, isBullish, leverage = 100 } = options;
     
-    // Get symbol specs
-    const specs = SYMBOL_SPECS[symbol] || SYMBOL_SPECS.EURUSD;
+    // Get symbol specs from config
+    const specs = this.getSymbolSpecs(symbol);
     
     // Calculate risk amount in account currency
     const riskAmount = accountBalance * (this.params.maxRiskPerTrade / 100);
@@ -73,8 +88,11 @@ export class RiskCalculator {
     // Adjust to valid lot step
     const adjustedLotSize = this.roundToStep(lotSize, specs.lotStep);
     
-    // Ensure within min/max
-    const finalLotSize = Math.max(specs.minLot, Math.min(specs.maxLot, adjustedLotSize));
+    // Ensure within min/max from config
+    const finalLotSize = Math.max(
+      Math.min(specs.maxLot, adjustedLotSize),
+      specs.minLot
+    );
     
     // Calculate units
     const units = finalLotSize * specs.contractSize;
@@ -137,18 +155,18 @@ export class RiskCalculator {
       dailyRiskUsed,
     } = options;
     
-    // Check max positions
+    // Check max positions from config
     if (currentPositions >= this.params.maxOpenPositions) {
       errors.push(`Maximum open positions reached (${this.params.maxOpenPositions})`);
     }
     
-    // Check max daily risk
+    // Check max daily risk from config
     const projectedDailyRisk = dailyRiskUsed + (riskAmount / accountBalance) * 100;
     if (projectedDailyRisk > this.params.maxDailyRisk) {
       errors.push(`Daily risk limit exceeded (${projectedDailyRisk.toFixed(1)}% projected)`);
     }
     
-    // Check risk-reward ratio
+    // Check risk-reward ratio from config
     if (riskRewardRatio < this.params.minRiskReward) {
       errors.push(`Risk-reward ratio too low (${riskRewardRatio.toFixed(2)} < ${this.params.minRiskReward})`);
     }
@@ -200,6 +218,9 @@ export class RiskCalculator {
    * Calculate correlation between two positions
    */
   calculateCorrelation(position1: { symbol: string }, position2: { symbol: string }): number {
+    // Get correlation threshold from config
+    const maxCorrelation = this.params.maxCorrelation;
+    
     // Simple correlation based on currency pairs
     const currencyMatrix: Record<string, string[]> = {
       USD: ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD'],
@@ -220,7 +241,8 @@ export class RiskCalculator {
     
     const overlap = currencies1.filter(c => currencies2.includes(c));
     
-    return overlap.length > 0 ? 1 : 0;
+    // Return correlation based on overlap
+    return overlap.length > 0 ? maxCorrelation : 0;
   }
 
   /**
