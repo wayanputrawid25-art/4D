@@ -1,5 +1,7 @@
 # ForexOS Deployment Guide
 
+**Last Updated:** 2026-06-25
+
 Complete deployment documentation for ForexOS monorepo.
 
 ---
@@ -13,7 +15,9 @@ Complete deployment documentation for ForexOS monorepo.
 5. [Vercel Deployment](#vercel-deployment)
 6. [Environment Setup](#environment-setup)
 7. [Build Pipeline](#build-pipeline)
-8. [Troubleshooting](#troubleshooting)
+8. [Docker Deployment](#docker-deployment)
+9. [API Routing](#api-routing)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -279,6 +283,132 @@ npm run build
 
 ---
 
+## Docker Deployment
+
+### API Server (Dockerfile)
+
+```dockerfile
+# Dockerfile (multi-stage build)
+FROM node:20-alpine AS base
+
+# Install dependencies
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY package.json turbo.json ./
+COPY apps/web/package.json apps/web/
+COPY apps/api/package.json apps/api/
+COPY packages/*/package.json packages/
+RUN npm ci
+
+# Build
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+# Production
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nodeapp
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=deps /app/node_modules ./node_modules
+USER nodeapp
+EXPOSE 3001
+CMD ["node", "dist/index.js"]
+```
+
+### Robot (Dockerfile.robot)
+
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 \
+    libgomp1 libharfbuzz0b libfreetype6 fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml poetry.lock* ./
+RUN pip install poetry && poetry config virtualenvs.create false && poetry install
+COPY src/ ./src/
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-m", "src.main"]
+```
+
+### Docker Compose
+
+```yaml
+# docker-compose.yml
+services:
+  api:
+    build: .
+    container_name: forexos-api
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3001
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  robot:
+    build:
+      context: ./robot
+      dockerfile: Dockerfile.robot
+    environment:
+      - MT5_LOGIN=${MT5_LOGIN}
+      - MT5_PASSWORD=${MT5_PASSWORD}
+      - DATABASE_URL=${DATABASE_URL}
+```
+
+---
+
+## API Routing
+
+### Backend Routes (Express.js)
+
+The API exposes these endpoints:
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/health` | GET | Health check |
+| `/api/v1/auth/*` | * | Authentication |
+| `/api/v1/trading/*` | * | Trading operations |
+| `/api/v1/market/*` | * | Market data |
+| `/api/v1/patterns/*` | * | Pattern detection |
+| `/api/v1/indicators/*` | * | Technical indicators |
+| `/api/v1/decision/*` | * | Decision engine |
+| `/api/v1/execution/*` | * | Order execution |
+| `/api/v1/optimization/*` | * | Strategy optimization |
+
+### Frontend Routes (Next.js)
+
+```
+apps/web/src/app/
+├── (auth)/              # Authentication pages
+│   ├── login/
+│   └── register/
+├── (dashboard)/         # Protected dashboard
+│   ├── trading/
+│   ├── patterns/
+│   ├── backtest/
+│   └── settings/
+└── page.tsx             # Landing page
+```
+
+---
+
 ## Configuration Files
 
 ### vercel.json
@@ -295,11 +425,30 @@ npm run build
 
 ### turbo.json
 
+**⚠️ Compatibility Note:** The installed Turbo version is 1.12.x which uses `pipeline`. If using Turbo 2.x, change `tasks` to `pipeline`.
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL", "JWT_SECRET"],
+  "pipeline": {
+    "build#api": {
+      "dependsOn": ["^build", "build#database", "build#trading-config", "build#engine"],
+      "outputs": ["dist/**"]
+    },
+    "build#web": {
+      "dependsOn": ["^build", "build#api"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    }
+  }
+}
+```
+
 Key configurations:
 - Global dependencies on `.env`
 - Build order dependencies
-- Output caching
-- Task pipelines
+- Output caching per workspace
 
 ### .npmrc
 
@@ -458,4 +607,4 @@ For deployment issues:
 
 ---
 
-*Last updated: 2026-06-24*
+*Last updated: 2026-06-25*
