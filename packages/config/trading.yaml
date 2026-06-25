@@ -1,0 +1,104 @@
+project:
+  name: ForexOS
+  version: 1.0.0
+  mode: personal
+
+broker:
+  platform: MT5
+  broker: Exness
+  account_type: Demo
+  account_currency: USD
+
+symbols:
+  - EURUSD
+  - GBPUSD
+  - USDJPY
+  - XAUUSD
+
+timeframes:
+  trend: H4
+  confirmation: H1
+  entry: M15
+
+trading:
+  max_open_positions: 1
+  max_weekly_trades: 2
+  max_daily_trades: 1
+  one_position_per_symbol: true
+
+risk:
+  risk_per_trade: 1
+  max_daily_loss: 2
+  max_weekly_loss: 4
+  max_drawdown: 10
+  minimum_rr: 2.5
+  preferred_rr: 3.0
+
+sessions:
+  london: true
+  newyork: true
+  asia: false
+
+filters:
+  high_impact_news: true
+  spread_filter: true
+  max_spread_pips: 2.0
+  slippage_filter: true
+  max_slippage_pips: 1.0
+  weekend_filter: true
+  rollover_filter: true
+
+strategy:
+
+  trend:
+    ema_fast: 50
+    ema_slow: 200
+
+  indicators:
+    rsi: true
+    macd: true
+    atr: true
+
+  chart_patterns:
+    - Double Top
+    - Double Bottom
+    - Head and Shoulders
+    - Inverse Head and Shoulders
+    - Ascending Triangle
+    - Descending Triangle
+    - Symmetrical Triangle
+    - Bull Flag
+    - Bear Flag
+    - Rising Wedge
+    - Falling Wedge
+
+  candlestick:
+    - Bullish Engulfing
+    - Bearish Engulfing
+    - Pin Bar
+    - Morning Star
+    - Evening Star
+    - Inside Bar
+
+decision:
+  minimum_score: 90
+  require_trend: true
+  require_pattern: true
+  require_sr: true
+  require_candlestick: true
+
+execution:
+  allow_live: false
+  allow_demo: true
+  trailing_stop: true
+  break_even: true
+  partial_take_profit: true
+
+logging:
+  save_all_signals: true
+  save_all_orders: true
+  save_backtests: true
+
+notifications:
+  telegram: true
+  email: false
