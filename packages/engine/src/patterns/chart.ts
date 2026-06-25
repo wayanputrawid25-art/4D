@@ -507,6 +507,12 @@ export function detectAllChartPatterns(candles: Candle[]): PatternSignal[] {
     detectTriangle,
     detectHeadAndShoulders,
     detectInverseHeadAndShoulders,
+    detectBullFlag,
+    detectBearFlag,
+    detectRisingWedge,
+    detectFallingWedge,
+    detectCupAndHandle,
+    detectChannel,
   ];
   
   for (const detector of detectors) {
@@ -523,4 +529,499 @@ export function detectAllChartPatterns(candles: Candle[]): PatternSignal[] {
   }
   
   return signals;
+}
+
+// Bull Flag Pattern
+export function detectBullFlag(candles: Candle[]): ChartPatternResult {
+  if (candles.length < 20) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const recentCandles = candles.slice(-20);
+  const swingPoints = findSwingPoints(recentCandles, 3);
+  
+  if (swingPoints.length < 4) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const highs = swingPoints.filter(p => p.type === 'swing_high');
+  const lows = swingPoints.filter(p => p.type === 'swing_low');
+  
+  if (highs.length < 2 || lows.length < 2) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Check for strong uptrend (pole)
+  const poleStart = lows[0];
+  const poleEnd = highs[0];
+  const poleHeight = poleEnd.price - poleStart.price;
+  
+  if (poleHeight < 0) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Check for slight downward consolidation (flag)
+  const flagHighs = highs.slice(1);
+  const flagLows = lows.slice(1);
+  
+  if (flagHighs.length < 1 || flagLows.length < 1) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const flagHighTrend = calculateTrendLine(flagHighs.map(h => h.price));
+  const flagLowTrend = calculateTrendLine(flagLows.map(l => l.price));
+  
+  // Flag should slope slightly downward or be flat
+  const isValidFlag = flagHighTrend.slope <= 0 && flagLowTrend.slope <= 0;
+  
+  if (!isValidFlag) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Flag retracement should be less than 50% of pole
+  const flagHeight = poleEnd.price - (flagLows[flagLows.length - 1]?.price || flagLows[0].price);
+  const retracement = flagHeight / poleHeight;
+  
+  if (retracement > 0.5) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  let confidence = 60;
+  
+  // Stronger if retracement is between 25-38%
+  if (retracement > 0.25 && retracement < 0.38) confidence += 20;
+  else if (retracement > 0.20 && retracement < 0.50) confidence += 10;
+  
+  // Pole should be strong
+  const poleStrength = poleHeight / poleStart.price;
+  if (poleStrength > 0.05) confidence += 10;
+  
+  const lastCandle = candles[candles.length - 1];
+  
+  return {
+    pattern: {
+      id: `bull_flag_${lastCandle.id}`,
+      type: 'bull_flag' as PatternType,
+      name: 'Bull Flag',
+      direction: 'bullish',
+      strength: confidence > 80 ? 'strong' : confidence > 60 ? 'moderate' : 'weak',
+      confidence,
+      symbol: candles[0].symbol,
+      timeframe: candles[0].timeframe,
+      startTime: recentCandles[0].timestamp,
+      endTime: lastCandle.timestamp,
+      priceTargets: {
+        resistance: poleEnd.price + poleHeight,
+        support: flagLows[flagLows.length - 1]?.price || flagLows[0].price,
+      },
+    },
+    confidence,
+    formed: confidence > 75,
+    priceTargets: {
+      resistance: poleEnd.price + poleHeight,
+      support: flagLows[flagLows.length - 1]?.price || flagLows[0].price,
+    },
+  };
+}
+
+// Bear Flag Pattern
+export function detectBearFlag(candles: Candle[]): ChartPatternResult {
+  if (candles.length < 20) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const recentCandles = candles.slice(-20);
+  const swingPoints = findSwingPoints(recentCandles, 3);
+  
+  if (swingPoints.length < 4) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const highs = swingPoints.filter(p => p.type === 'swing_high');
+  const lows = swingPoints.filter(p => p.type === 'swing_low');
+  
+  if (highs.length < 2 || lows.length < 2) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Check for strong downtrend (pole)
+  const poleStart = highs[0];
+  const poleEnd = lows[0];
+  const poleHeight = poleStart.price - poleEnd.price;
+  
+  if (poleHeight < 0) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Check for slight upward consolidation (flag)
+  const flagHighs = highs.slice(1);
+  const flagLows = lows.slice(1);
+  
+  if (flagHighs.length < 1 || flagLows.length < 1) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const flagHighTrend = calculateTrendLine(flagHighs.map(h => h.price));
+  const flagLowTrend = calculateTrendLine(flagLows.map(l => l.price));
+  
+  // Flag should slope slightly upward or be flat
+  const isValidFlag = flagHighTrend.slope >= 0 && flagLowTrend.slope >= 0;
+  
+  if (!isValidFlag) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Flag retracement should be less than 50% of pole
+  const flagHeight = (flagHighs[flagHighs.length - 1]?.price || flagHighs[0].price) - poleEnd.price;
+  const retracement = flagHeight / poleHeight;
+  
+  if (retracement > 0.5) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  let confidence = 60;
+  
+  if (retracement > 0.25 && retracement < 0.38) confidence += 20;
+  else if (retracement > 0.20 && retracement < 0.50) confidence += 10;
+  
+  const poleStrength = poleHeight / poleStart.price;
+  if (poleStrength > 0.05) confidence += 10;
+  
+  const lastCandle = candles[candles.length - 1];
+  
+  return {
+    pattern: {
+      id: `bear_flag_${lastCandle.id}`,
+      type: 'bear_flag' as PatternType,
+      name: 'Bear Flag',
+      direction: 'bearish',
+      strength: confidence > 80 ? 'strong' : confidence > 60 ? 'moderate' : 'weak',
+      confidence,
+      symbol: candles[0].symbol,
+      timeframe: candles[0].timeframe,
+      startTime: recentCandles[0].timestamp,
+      endTime: lastCandle.timestamp,
+      priceTargets: {
+        support: poleEnd.price - poleHeight,
+        resistance: flagHighs[flagHighs.length - 1]?.price || flagHighs[0].price,
+      },
+    },
+    confidence,
+    formed: confidence > 75,
+  };
+}
+
+// Rising Wedge
+export function detectRisingWedge(candles: Candle[]): ChartPatternResult {
+  return detectWedgePattern(candles, 'rising');
+}
+
+// Falling Wedge
+export function detectFallingWedge(candles: Candle[]): ChartPatternResult {
+  return detectWedgePattern(candles, 'falling');
+}
+
+// Generic Wedge Pattern
+function detectWedgePattern(candles: Candle[], type: 'rising' | 'falling'): ChartPatternResult {
+  if (candles.length < 30) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const recentCandles = candles.slice(-30);
+  const swingPoints = findSwingPoints(recentCandles, 3);
+  
+  if (swingPoints.length < 4) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const highs = swingPoints.filter(p => p.type === 'swing_high').map(p => p.price);
+  const lows = swingPoints.filter(p => p.type === 'swing_low').map(p => p.price);
+  
+  if (highs.length < 2 || lows.length < 2) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const highTrend = calculateTrendLine(highs);
+  const lowTrend = calculateTrendLine(lows);
+  
+  let isValid = false;
+  let direction: PatternDirection = 'neutral';
+  let patternType: PatternType;
+  let patternName: string;
+  
+  if (type === 'rising') {
+    // Rising wedge: both lines go up, but lows rise faster
+    isValid = highTrend.slope > 0 && lowTrend.slope > 0 && lowTrend.slope > highTrend.slope;
+    direction = 'bearish';
+    patternType = 'rising_wedge';
+    patternName = 'Rising Wedge';
+  } else {
+    // Falling wedge: both lines go down, but highs fall faster
+    isValid = highTrend.slope < 0 && lowTrend.slope < 0 && highTrend.slope < lowTrend.slope;
+    direction = 'bullish';
+    patternType = 'falling_wedge';
+    patternName = 'Falling Wedge';
+  }
+  
+  if (!isValid) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  let confidence = 60;
+  
+  // Check if lines are converging
+  const initialSpread = Math.abs(highs[0] - lows[0]);
+  const finalSpread = Math.abs(highs[highs.length - 1] - lows[lows.length - 1]);
+  const convergence = (initialSpread - finalSpread) / initialSpread;
+  
+  if (convergence > 0.3) confidence += 20;
+  else if (convergence > 0.15) confidence += 10;
+  
+  const lastCandle = candles[candles.length - 1];
+  
+  return {
+    pattern: {
+      id: `${patternType}_${lastCandle.id}`,
+      type: patternType,
+      name: patternName,
+      direction,
+      strength: confidence > 80 ? 'strong' : confidence > 60 ? 'moderate' : 'weak',
+      confidence,
+      symbol: candles[0].symbol,
+      timeframe: candles[0].timeframe,
+      startTime: recentCandles[0].timestamp,
+      endTime: lastCandle.timestamp,
+    },
+    confidence,
+    formed: confidence > 75,
+  };
+}
+
+// Cup and Handle
+export function detectCupAndHandle(candles: Candle[]): ChartPatternResult {
+  if (candles.length < 40) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const recentCandles = candles.slice(-40);
+  const swingPoints = findSwingPoints(recentCandles, 4);
+  
+  const highs = swingPoints.filter(p => p.type === 'swing_high');
+  const lows = swingPoints.filter(p => p.type === 'swing_low');
+  
+  if (highs.length < 2 || lows.length < 3) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Find cup: two similar highs with a rounded bottom between them
+  const leftRim = highs[highs.length - 2];
+  const rightRim = highs[highs.length - 1];
+  const cupBottom = lows.slice(-2)[0];
+  
+  if (!leftRim || !rightRim || !cupBottom) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Check if rims are at similar levels
+  const rimDiff = Math.abs(leftRim.price - rightRim.price);
+  const rimAvg = (leftRim.price + rightRim.price) / 2;
+  const rimTolerance = rimAvg * 0.05; // 5% tolerance
+  
+  if (rimDiff > rimTolerance) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Cup bottom should be significantly below rims
+  const cupDepth = rimAvg - cupBottom.price;
+  const depthRatio = cupDepth / rimAvg;
+  
+  if (depthRatio < 0.10) { // Less than 10% depth
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Check for handle (minor pullback after cup)
+  const handleCandles = recentCandles.slice(rightRim.index);
+  const handleHighs = findSwingPoints(handleCandles, 2).filter(p => p.type === 'swing_high');
+  
+  let confidence = 65;
+  
+  // Ideal cup has rounded U shape
+  if (depthRatio > 0.15 && depthRatio < 0.35) confidence += 15;
+  else if (depthRatio >= 0.10 && depthRatio <= 0.50) confidence += 10;
+  
+  // Handle should retrace less than 50% of cup
+  if (handleCandles.length > 5) {
+    const handleStartPrice = handleCandles[0].close;
+    const handleEndPrice = handleCandles[handleCandles.length - 1].close;
+    const handleRetracement = (handleStartPrice - handleEndPrice) / cupDepth;
+    
+    if (handleRetracement < 0.5) confidence += 15;
+    else if (handleRetracement < 0.7) confidence += 10;
+  }
+  
+  const lastCandle = candles[candles.length - 1];
+  
+  return {
+    pattern: {
+      id: `cup_and_handle_${lastCandle.id}`,
+      type: 'cup_and_handle' as PatternType,
+      name: 'Cup and Handle',
+      direction: 'bullish',
+      strength: confidence > 85 ? 'strong' : confidence > 70 ? 'moderate' : 'weak',
+      confidence,
+      symbol: candles[0].symbol,
+      timeframe: candles[0].timeframe,
+      startTime: recentCandles[0].timestamp,
+      endTime: lastCandle.timestamp,
+      priceTargets: {
+        resistance: rimAvg + cupDepth,
+        support: cupBottom.price,
+      },
+    },
+    confidence,
+    formed: confidence > 80,
+  };
+}
+
+// Parallel Channel
+export function detectChannel(candles: Candle[]): ChartPatternResult {
+  if (candles.length < 20) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const recentCandles = candles.slice(-20);
+  const swingPoints = findSwingPoints(recentCandles, 3);
+  
+  if (swingPoints.length < 4) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const highs = swingPoints.filter(p => p.type === 'swing_high').map(p => p.price);
+  const lows = swingPoints.filter(p => p.type === 'swing_low').map(p => p.price);
+  
+  if (highs.length < 2 || lows.length < 2) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  const highTrend = calculateTrendLine(highs);
+  const lowTrend = calculateTrendLine(lows);
+  
+  // Check for parallel lines (similar slopes)
+  const slopeDiff = Math.abs(highTrend.slope - lowTrend.slope);
+  const avgSlope = (Math.abs(highTrend.slope) + Math.abs(lowTrend.slope)) / 2;
+  
+  // Lines are parallel if slope difference is small relative to slope
+  if (avgSlope > 0.0001 && slopeDiff / avgSlope > 0.5) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  // Lines are parallel if both slopes are nearly zero (horizontal channel)
+  if (avgSlope <= 0.0001 && slopeDiff > 0.0001) {
+    return { pattern: null, confidence: 0, formed: false };
+  }
+  
+  let confidence = 55;
+  
+  // Determine direction
+  let direction: PatternDirection;
+  if (highTrend.slope > 0.0001) direction = 'bullish';
+  else if (highTrend.slope < -0.0001) direction = 'bearish';
+  else direction = 'neutral';
+  
+  // Higher confidence if more touch points
+  if (highs.length >= 3) confidence += 15;
+  else confidence += 5;
+  
+  if (lows.length >= 3) confidence += 15;
+  else confidence += 5;
+  
+  // Check if price is near boundaries
+  const lastCandle = candles[candles.length - 1];
+  const upperBoundary = highTrend.slope * (highs.length - 1) + highTrend.intercept;
+  const lowerBoundary = lowTrend.slope * (lows.length - 1) + lowTrend.intercept;
+  
+  const pricePosition = (lastCandle.close - lowerBoundary) / (upperBoundary - lowerBoundary);
+  
+  if (pricePosition > 0.3 && pricePosition < 0.7) confidence += 10;
+  
+  return {
+    pattern: {
+      id: `channel_${lastCandle.id}`,
+      type: 'channel' as PatternType,
+      name: 'Parallel Channel',
+      direction,
+      strength: confidence > 80 ? 'strong' : confidence > 60 ? 'moderate' : 'weak',
+      confidence,
+      symbol: candles[0].symbol,
+      timeframe: candles[0].timeframe,
+      startTime: recentCandles[0].timestamp,
+      endTime: lastCandle.timestamp,
+      priceTargets: {
+        resistance: upperBoundary,
+        support: lowerBoundary,
+      },
+    },
+    confidence,
+    formed: confidence > 70,
+    priceTargets: {
+      resistance: upperBoundary,
+      support: lowerBoundary,
+    },
+  };
+}
+
+// Calculate support and resistance levels
+export function calculateSupportResistance(candles: Candle[]): {
+  support: number[];
+  resistance: number[];
+} {
+  const swingPoints = findSwingPoints(candles, 5);
+  
+  const supports: number[] = [];
+  const resistances: number[] = [];
+  
+  for (const point of swingPoints) {
+    if (point.type === 'swing_high') {
+      resistances.push(point.price);
+    } else {
+      supports.push(point.price);
+    }
+  }
+  
+  // Sort and group nearby levels
+  const tolerance = candles[candles.length - 1].close * 0.005; // 0.5%
+  
+  const groupedSupports = groupPriceLevels(supports, tolerance);
+  const groupedResistances = groupPriceLevels(resistances, tolerance);
+  
+  // Return top 3 levels by strength
+  return {
+    support: groupedSupports.slice(0, 3).map(g => g.level),
+    resistance: groupedResistances.slice(0, 3).map(g => g.level),
+  };
+}
+
+// Group nearby price levels
+function groupPriceLevels(levels: number[], tolerance: number): { level: number; count: number }[] {
+  if (levels.length === 0) return [];
+  
+  const sorted = [...levels].sort((a, b) => a - b);
+  const groups: { level: number; count: number }[] = [];
+  
+  let currentGroup = { level: sorted[0], count: 1 };
+  
+  for (let i = 1; i < sorted.length; i++) {
+    if (Math.abs(sorted[i] - currentGroup.level) <= tolerance) {
+      currentGroup.level = (currentGroup.level * currentGroup.count + sorted[i]) / (currentGroup.count + 1);
+      currentGroup.count++;
+    } else {
+      groups.push(currentGroup);
+      currentGroup = { level: sorted[i], count: 1 };
+    }
+  }
+  
+  groups.push(currentGroup);
+  
+  // Sort by strength (count)
+  return groups.sort((a, b) => b.count - a.count);
 }
